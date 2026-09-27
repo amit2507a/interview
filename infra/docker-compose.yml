@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL ───────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: interview_postgres
+    environment:
+      POSTGRES_USER: interview_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: interview_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U interview_user -d interview_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: interview_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API (Node.js) ───────────────────────────────
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: interview_api
+    env_file: .env
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/api/src:/app/src
+    command: npm run dev
+
+  # ─── AI Service (FastAPI) ────────────────────────────────
+  ai:
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile
+    container_name: interview_ai
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/ai/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ─── AI Worker (SQS Consumer) ────────────────────────────
+  worker:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+    container_name: interview_worker
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/worker/app:/app/app
+    command: python -m app.pipeline.consumer
+
+  # ─── Frontend (Next.js) ──────────────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: interview_web
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+      - ai
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:

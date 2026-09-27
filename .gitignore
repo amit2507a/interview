@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# Env files — never commit secrets
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+
+# Testing
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Uploads / temp
+uploads/
+tmp/
