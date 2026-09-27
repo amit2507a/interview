@@ -33,12 +33,17 @@ services:
       retries: 5
 
   # ─── Backend API (Node.js) ───────────────────────────────
+  # NOTE: Build this AFTER completing services/api/src stubs
   api:
     build:
       context: ./services/api
       dockerfile: Dockerfile
     container_name: interview_api
-    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://interview_user:password@postgres:5432/interview_db
+      REDIS_URL: redis://redis:6379
+      API_PORT: 4000
+      NODE_ENV: development
     ports:
       - "4000:4000"
     depends_on:
@@ -51,12 +56,20 @@ services:
     command: npm run dev
 
   # ─── AI Service (FastAPI) ────────────────────────────────
+  # NOTE: Build this AFTER completing services/ai/app stubs
   ai:
     build:
       context: ./services/ai
       dockerfile: Dockerfile
     container_name: interview_ai
-    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://interview_user:password@postgres:5432/interview_db
+      REDIS_URL: redis://redis:6379
+      AI_SERVICE_PORT: 8000
+      AWS_REGION: us-east-1
+      BEDROCK_REGION: us-east-1
+      BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+      API_URL: http://api:4000
     ports:
       - "8000:8000"
     depends_on:
@@ -67,12 +80,16 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # ─── AI Worker (SQS Consumer) ────────────────────────────
+  # NOTE: Start this AFTER SQS + S3 are configured
   worker:
     build:
       context: ./services/worker
       dockerfile: Dockerfile
     container_name: interview_worker
-    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://interview_user:password@postgres:5432/interview_db
+      AWS_REGION: us-east-1
+      S3_BUCKET_NAME: interview-videos-mvp
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,12 +98,15 @@ services:
     command: python -m app.pipeline.consumer
 
   # ─── Frontend (Next.js) ──────────────────────────────────
+  # NOTE: Scaffold apps/web with Next.js first (Day 2)
   web:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
     container_name: interview_web
-    env_file: .env
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_AI_URL: http://localhost:8000
     ports:
       - "3000:3000"
     depends_on:
